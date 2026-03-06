@@ -58,44 +58,90 @@ Base URL on local machine: `http://localhost:3000`
 1. `GET /health` for service health check.
 2. `GET /markets/raw?limit=50` for raw normalized market output.
 3. `GET /markets/convictions?limit=100` for ranked conviction output.
+4. `GET /signals/pulse-board` for ranked signal board from latest successful run.
+5. `GET /signals/hits` for HITS lifecycle output.
+6. `GET /signals/conviction-map`, `/signals/drift`, `/signals/edge-window`, `/signals/catalyst-feed`.
+7. `GET /wallets/:walletAddress/profile` for wallet profile data when available.
+8. `POST /internal/rpc-attribution` for RPC-based wallet attribution ingestion.
+9. `GET /internal/diagnostics` and `GET /internal/rpc-replay/:signature` require `x-internal-token` when `INTERNAL_API_TOKEN` is set.
 
 ## Data and Security
 
 1. Users must provide `DFLOW_API_KEY`.
-2. API keys are loaded from environment variables only.
-3. API keys must never be committed to git.
-4. Multi user secure key storage will be added in future versions.
+2. Backend sends this key as `x-api-key` to dFlow APIs.
+3. API keys are loaded from environment variables only.
+4. API keys must never be committed to git.
+5. Multi user secure key storage will be added in future versions.
 
 ## Local Setup
 
-1. Go to backend directory.
+1. Start Postgres and Redis.
+
+```bash
+docker compose up -d
+```
+
+2. Go to backend directory.
 
 ```bash
 cd backend
 ```
 
-2. Install dependencies.
+3. Install dependencies.
 
 ```bash
 bun install
 ```
 
-3. Create environment file.
+4. Create environment file.
 
 ```bash
 cp .env.example .env
 ```
 
-4. Set dFlow key in `.env`.
+5. Set dFlow key in `.env`.
 
 ```env
 DFLOW_API_KEY=your_real_key
 ```
 
-5. Start dev server.
+6. Generate and apply DB migrations.
+
+```bash
+bun run db:generate
+bun run db:migrate
+```
+
+7. Start dev server.
 
 ```bash
 bun run dev
+```
+
+The backend starts a BullMQ worker that enqueues and executes `analysis_tick` every minute.
+
+Core runtime flow is ordered as:
+
+1. orderbook analysis
+2. wallet processor
+3. market analysis
+
+API score endpoints serve the latest successful persisted snapshot by default and support `runId` for historical replay reads.
+
+Logging:
+
+- Server and runtime logs are emitted to stdout using `pino`.
+- No file logger is used.
+
+## Scripts
+
+From `backend/`:
+
+```bash
+bun run check
+bun run test
+bun run replay:backtest -- <runId>
+bun run replay:compare -- <runIdA> <runIdB>
 ```
 
 ## Backend Structure
@@ -110,8 +156,10 @@ backend/
     routes/
       health.ts
       markets.ts
+      signals.ts
+      wallets.ts
     services/
-      analysis.ts
+      analysis-pipeline.ts
 ```
 
 ## Product Principles

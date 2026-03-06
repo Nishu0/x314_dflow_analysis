@@ -4,7 +4,6 @@ export type ConvictionBand = "LOW" | "MEDIUM" | "HIGH";
 
 export type MarketSignal = {
   marketId: string;
-  slug?: string;
   headline: string;
   convictionScore: number;
   convictionBand: ConvictionBand;
@@ -64,9 +63,8 @@ export function computeSignal(market: DflowMarket): MarketSignal {
   }
 
   return {
-    marketId: market.id,
-    slug: market.slug,
-    headline: market.title ?? market.question ?? market.slug ?? market.id,
+    marketId: market.marketTicker,
+    headline: market.title ?? market.marketTicker,
     convictionScore,
     convictionBand: bandFromScore(convictionScore),
     signalBias,
