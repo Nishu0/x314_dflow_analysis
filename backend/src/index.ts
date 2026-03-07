@@ -7,6 +7,7 @@ import { healthRoutes } from "./routes/health";
 import { internalRoutes } from "./routes/internal";
 import { marketRoutes } from "./routes/markets";
 import { webhookRoutes } from "./routes/webhooks";
+import { v1Routes } from "./routes/v1/index";
 
 function getErrorMessage(
   error: Error | string | number | boolean | object | null | undefined
@@ -38,9 +39,12 @@ const app = new Elysia()
   .use(marketRoutes)
   .use(webhookRoutes)
   .use(internalRoutes)
+  .use(v1Routes)
   .get("/", () => ({
     name: "x314 dFlow Analysis Backend",
+    baseUrl: "http://localhost:3000",
     docs: {
+      v1Api: "/api/v1",
       health: "/health",
       markets: "/markets",
       marketDetails: "/markets/:marketTicker/details",

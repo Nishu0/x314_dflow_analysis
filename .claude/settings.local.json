@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run:*)",
+      "Bash(bun install:*)",
+      "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 bunx drizzle-kit:*)"
+    ]
+  }
+}
