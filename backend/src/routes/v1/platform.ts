@@ -1,14 +1,6 @@
 import { sql } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 import { db } from "../../db/client";
-import {
-  analysisRuns,
-  events,
-  markets,
-  tradeFacts,
-  walletAttributions,
-  walletProfiles
-} from "../../db/schema";
 
 // 4. GET /api/v1/platform/stats - Platform-wide aggregate stats
 export const v1PlatformRoutes = new Elysia({ prefix: "/platform" }).get(
@@ -17,30 +9,54 @@ export const v1PlatformRoutes = new Elysia({ prefix: "/platform" }).get(
     const windowHours = query.windowHours ?? 24;
     const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-    const statsRows = await db.execute(sql`
-      SELECT
-        (SELECT COUNT(*)::int FROM markets) AS total_markets,
-        (SELECT COUNT(*)::int FROM markets WHERE status = 'active') AS active_markets,
-        (SELECT COUNT(*)::int FROM markets WHERE status = 'determined') AS resolved_markets,
-        (SELECT COUNT(*)::int FROM markets
-          WHERE close_time >= NOW() AND close_time < NOW() + INTERVAL '1 day') AS closing_today,
-        (SELECT COUNT(*)::int FROM markets
-          WHERE close_time >= NOW() AND close_time < NOW() + INTERVAL '7 days') AS closing_this_week,
-        (SELECT COUNT(*)::int FROM markets
-          WHERE close_time >= NOW() AND close_time < NOW() + INTERVAL '30 days') AS closing_this_month,
-        (SELECT COUNT(*)::int FROM events) AS total_categories,
-        (SELECT COUNT(*)::int FROM trade_facts WHERE created_time >= ${since}) AS window_trades,
-        (SELECT COALESCE(SUM(notional_usd_est::numeric), 0) FROM trade_facts WHERE created_time >= ${since}) AS window_volume_usd,
-        (SELECT COUNT(*)::int FROM trade_facts WHERE created_time >= ${since} AND notional_usd_est::numeric >= 1000) AS window_large_orders,
-        (SELECT COUNT(DISTINCT wallet_address)::int FROM wallet_attributions WHERE attributed_time >= ${since}) AS window_active_wallets,
-        (SELECT COUNT(*)::int FROM wallet_profiles) AS total_scored_wallets,
-        (SELECT COUNT(*)::int FROM wallet_attributions) AS total_attributions,
-        (SELECT COUNT(*)::int FROM analysis_runs WHERE status = 'SUCCEEDED') AS total_analysis_runs,
-        (SELECT run_id FROM analysis_runs WHERE status = 'SUCCEEDED' ORDER BY finished_at DESC LIMIT 1) AS latest_run_id,
-        (SELECT finished_at FROM analysis_runs WHERE status = 'SUCCEEDED' ORDER BY finished_at DESC LIMIT 1) AS latest_run_at
-    `);
+    const [
+      marketStatsRows,
+      windowTradeRows,
+      walletRows,
+      runRows
+    ] = await Promise.all([
+      db.execute(sql`
+        SELECT
+          COUNT(*)::int AS total_markets,
+          COUNT(CASE WHEN status = 'active' THEN 1 END)::int AS active_markets,
+          COUNT(CASE WHEN status = 'determined' THEN 1 END)::int AS resolved_markets,
+          COUNT(CASE WHEN close_time >= NOW() AND close_time < NOW() + INTERVAL '1 day' THEN 1 END)::int AS closing_today,
+          COUNT(CASE WHEN close_time >= NOW() AND close_time < NOW() + INTERVAL '7 days' THEN 1 END)::int AS closing_this_week,
+          COUNT(CASE WHEN close_time >= NOW() AND close_time < NOW() + INTERVAL '30 days' THEN 1 END)::int AS closing_this_month,
+          (SELECT COUNT(*)::int FROM events) AS total_categories
+        FROM markets
+      `),
+      db.execute(sql`
+        SELECT
+          COUNT(*)::int AS window_trades,
+          COALESCE(SUM(notional_usd_est::numeric), 0) AS window_volume_usd,
+          COUNT(CASE WHEN notional_usd_est::numeric >= 1000 THEN 1 END)::int AS window_large_orders
+        FROM trade_facts
+        WHERE created_time >= ${since}
+      `),
+      db.execute(sql`
+        SELECT
+          COUNT(DISTINCT wallet_address)::int AS window_active_wallets,
+          (SELECT COUNT(*)::int FROM wallet_profiles) AS total_scored_wallets,
+          (SELECT COUNT(*)::int FROM wallet_attributions) AS total_attributions
+        FROM wallet_attributions
+        WHERE attributed_time >= ${since}
+      `),
+      db.execute(sql`
+        SELECT COUNT(*)::int AS total_runs, run_id AS latest_run_id, finished_at AS latest_run_at
+        FROM analysis_runs
+        WHERE status = 'SUCCEEDED'
+        ORDER BY finished_at DESC
+        LIMIT 1
+      `)
+    ]);
 
-    const s = (statsRows.rows as any[])[0] ?? {};
+    const ms = (marketStatsRows.rows as any[])[0] ?? {};
+    const wt = (windowTradeRows.rows as any[])[0] ?? {};
+    const wa = (walletRows.rows as any[])[0] ?? {};
+    const rn = (runRows.rows as any[])[0] ?? {};
+
+    const s = { ...ms, ...wt, ...wa, ...rn };
 
     // Top category by window volume
     const topCategoryRows = await db.execute(sql`
@@ -93,7 +109,7 @@ export const v1PlatformRoutes = new Elysia({ prefix: "/platform" }).get(
         totalAttributions: Number(s.total_attributions ?? 0)
       },
       analysis: {
-        totalRuns: Number(s.total_analysis_runs ?? 0),
+        totalRuns: Number(s.total_runs ?? 0),
         latestRunId: s.latest_run_id ?? null,
         latestRunAt: s.latest_run_at ?? null
       }

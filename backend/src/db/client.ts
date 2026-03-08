@@ -3,8 +3,16 @@ import { Pool } from "pg";
 import { env } from "../config";
 import * as schema from "./schema";
 
+// Strip sslmode from URL and pass ssl config explicitly so cert verification can be
+// disabled for Aiven and other hosted DBs that use self-signed certificate chains.
+const dbUrl = env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/g, (match) =>
+  match.startsWith("?") ? "?" : ""
+).replace(/\?$/, "");
+const needsSsl = env.DATABASE_URL.includes("sslmode=");
+
 export const pool = new Pool({
-  connectionString: env.DATABASE_URL
+  connectionString: dbUrl,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined
 });
 
 export const db = drizzle(pool, { schema });
