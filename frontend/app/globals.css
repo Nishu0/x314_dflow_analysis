@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #000000;
+  --color-foreground: #00ff41;
+  --font-mono: "Courier New", "Courier", monospace;
+}
+
+:root {
+  --bg: #000000;
+  --fg: #00ff41;
+  --fg-dim: #00a829;
+  --fg-bright: #39ff14;
+  --amber: #ffb000;
+  --red: #ff3333;
+  --cyan: #00ffff;
+  --border: #00ff41;
+  --scanline: rgba(0, 255, 65, 0.03);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Courier New", "Courier", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* CRT scanlines effect */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--scanline) 2px,
+    var(--scanline) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Phosphor glow */
+.glow {
+  text-shadow: 0 0 8px var(--fg), 0 0 16px var(--fg-dim);
+}
+
+.glow-amber {
+  color: var(--amber);
+  text-shadow: 0 0 8px var(--amber), 0 0 16px rgba(255, 176, 0, 0.4);
+}
+
+.glow-red {
+  color: var(--red);
+  text-shadow: 0 0 8px var(--red);
+}
+
+.glow-cyan {
+  color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan), 0 0 16px rgba(0, 255, 255, 0.4);
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor::after {
+  content: "_";
+  animation: blink 1s step-end infinite;
+  color: var(--fg);
+}
+
+.cursor-block::after {
+  content: "█";
+  animation: blink 1s step-end infinite;
+  color: var(--fg);
+}
+
+/* Boot animation */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scanDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100vh); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in forwards;
+}
+
+/* Terminal box borders */
+.terminal-box {
+  border: 1px solid var(--fg-dim);
+  background: rgba(0, 255, 65, 0.02);
+  position: relative;
+}
+
+.terminal-box-amber {
+  border: 1px solid var(--amber);
+  background: rgba(255, 176, 0, 0.02);
+}
+
+.terminal-box-red {
+  border: 1px solid var(--red);
+  background: rgba(255, 51, 51, 0.02);
+}
+
+.terminal-box-cyan {
+  border: 1px solid var(--cyan);
+  background: rgba(0, 255, 255, 0.02);
+}
+
+/* Progress bar */
+.progress-bar {
+  background: var(--fg-dim);
+  height: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--fg);
+  width: var(--progress, 0%);
+  transition: width 0.5s ease;
+  box-shadow: 0 0 8px var(--fg);
+}
+
+/* Hover effects */
+.terminal-row {
+  transition: background 0.1s;
+  cursor: pointer;
+}
+
+.terminal-row:hover {
+  background: rgba(0, 255, 65, 0.07);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fg-dim);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg);
+}
+
+/* Selection */
+::selection {
+  background: var(--fg-dim);
+  color: #000;
+}
+
+/* Flicker animation for terminal effect */
+@keyframes flicker {
+  0% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.8; }
+  94% { opacity: 1; }
+  98% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+.flicker {
+  animation: flicker 6s infinite;
+}
+
+/* Loading dots */
+@keyframes loadingDots {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+}
+
+.loading::after {
+  content: ".";
+  animation: loadingDots 1s step-end infinite;
+}
